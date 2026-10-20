@@ -4,7 +4,7 @@ Agente conversacional que procesa solicitudes de orden de compra: lee el paquete
 
 El planteamiento completo (arquitectura, ciclo del agente, controles, diseño del adaptador SAP real, decisiones, supuestos, riesgos y uso de IA) está en [`SOLUCION.md`](./SOLUCION.md).
 
-**Link de prueba:** <!-- TODO: URL de Render --> (sin clave de acceso; link público).
+**Link de prueba:** https://periferia-reto3-agente-oc.onrender.com (sin clave de acceso; link público). Corre en el plan gratuito de Render: tras 15 minutos sin uso se duerme y la primera petición tarda ~1 minuto en despertarlo.
 
 ## Requisitos
 
