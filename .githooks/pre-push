@@ -1,0 +1,11 @@
+#!/bin/sh
+# Verificación automática antes de cada push: nada sube a main sin typecheck, tests y demo en verde.
+# Se activa con `npm install` (scripts/instalar-hooks.mjs fija core.hooksPath = .githooks).
+set -e
+echo "pre-push: typecheck…"
+npm run typecheck --silent
+echo "pre-push: tests…"
+npm test --silent
+echo "pre-push: demo sin modelo…"
+npm run demo --silent > /dev/null
+echo "pre-push: todo en verde, subiendo."
