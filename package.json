@@ -1,0 +1,24 @@
+{
+  "name": "agente-periferia",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Agente conversacional - Prueba técnica IA Periferia IT Group",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "demo": "tsx demo.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "tsx": "^4.23.15",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.0"
+  }
+}
