@@ -22,6 +22,7 @@ type Fuente =
   | "aprobacion"
   | "evidencia"
   | "maestro.proveedores"
+  | "maestro.centros-costo"
   | "constante"
   | "validacion"
   | "confirmacion"
@@ -57,6 +58,9 @@ export function construirPayload(
   if (!pago) return { ok: false, error: "Faltan las condiciones de pago: ni la solicitud ni el maestro las informan" }
   const iva = conFuente(paquete.solicitud.indicador_iva, validacion.derivados.indicador_iva)
   if (!iva) return { ok: false, error: "Falta el indicador de IVA: ni la solicitud ni el maestro lo informan" }
+  if (recortarDescripcion(paquete.solicitud.descripcion) === "") {
+    return { ok: false, error: "La solicitud no trae descripción de lo que se compra; pídala al solicitante" }
+  }
 
   const candidata = armarOrden(insumos.data, evidenciaSha256, confirmadoPor, pago.valor, iva.valor)
   const parseo = OrdenCompraSchema.safeParse(candidata)
@@ -81,7 +85,7 @@ function reunirInsumos(paquete: Paquete, validacion: ResultadoValidacion): Resul
 }
 
 function armarOrden(
-  { paquete, validacion, aprobacion, proveedor }: Insumos,
+  { paquete, validacion, aprobacion, proveedor, aprobador }: Insumos,
   evidenciaSha256: string,
   confirmadoPor: string | null,
   condicionesPago: string,
@@ -95,7 +99,8 @@ function armarOrden(
     proveedor: { codigo_sap: proveedor.codigo_sap, nit: proveedor.nit, nombre: proveedor.nombre },
     moneda: solicitud.moneda,
     condiciones_pago: condicionesPago,
-    aprobador: { email: aprobacion.de, fecha_aprobacion: aprobacion.fecha, evidencia_sha256: evidenciaSha256 },
+    // El email canónico sale del maestro (RC2 ya lo resolvió); la fecha, del correo de aprobación.
+    aprobador: { email: aprobador.email, fecha_aprobacion: aprobacion.fecha, evidencia_sha256: evidenciaSha256 },
     posiciones: [
       {
         numero: 10,
@@ -153,7 +158,7 @@ function construirTrazabilidad(fuentePago: Fuente, fuenteIva: Fuente, cantidadEx
     "proveedor.nombre": "maestro.proveedores",
     moneda: "solicitud",
     condiciones_pago: fuentePago,
-    "aprobador.email": "aprobacion",
+    "aprobador.email": "maestro.centros-costo",
     "aprobador.fecha_aprobacion": "aprobacion",
     "aprobador.evidencia_sha256": "evidencia",
     "posiciones[0].numero": "constante",

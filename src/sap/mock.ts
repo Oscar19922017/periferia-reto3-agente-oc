@@ -1,6 +1,7 @@
 import { appendFile, mkdir, readFile } from "node:fs/promises"
 import path from "node:path"
 import { z } from "zod"
+import { enCola } from "../domain/cola.ts"
 import { normalizarNit } from "../domain/maestros.ts"
 import { OrdenCompraSchema, type Maestros, type OrdenCompra } from "../domain/tipos.ts"
 import type { SapAdapter } from "./adapter.ts"
@@ -49,16 +50,19 @@ export class SapMock implements SapAdapter {
 
   // Lanza si la orden no cumple el esquema; quien llama captura.
   // Idempotente: la misma solicitud_id devuelve la OC ya creada sin escribir otra.
+  // Leer → numerar → escribir va en cola por archivo: dos creaciones simultáneas no comparten número.
   async crearOrden(orden: OrdenCompra): Promise<{ numero_oc: string; fecha: string }> {
     const valida = OrdenCompraSchema.parse(orden)
-    const registros = await this.leerRegistros()
-    const existente = registros.find((r) => r.orden.referencia.solicitud_id === valida.referencia.solicitud_id)
-    if (existente) return { numero_oc: existente.numero_oc, fecha: existente.fecha }
+    return enCola(this.rutaOrdenes, async () => {
+      const registros = await this.leerRegistros()
+      const existente = registros.find((r) => r.orden.referencia.solicitud_id === valida.referencia.solicitud_id)
+      if (existente) return { numero_oc: existente.numero_oc, fecha: existente.fecha }
 
-    const registro: RegistroOrden = { numero_oc: siguienteNumero(registros), fecha: hoyIso(), orden: valida }
-    await mkdir(path.dirname(this.rutaOrdenes), { recursive: true })
-    await appendFile(this.rutaOrdenes, `${JSON.stringify(registro)}\n`, "utf8")
-    return { numero_oc: registro.numero_oc, fecha: registro.fecha }
+      const registro: RegistroOrden = { numero_oc: siguienteNumero(registros), fecha: hoyIso(), orden: valida }
+      await mkdir(path.dirname(this.rutaOrdenes), { recursive: true })
+      await appendFile(this.rutaOrdenes, `${JSON.stringify(registro)}\n`, "utf8")
+      return { numero_oc: registro.numero_oc, fecha: registro.fecha }
+    })
   }
 
   async buscarOrdenPorReferencia(solicitud_id: string): Promise<{ numero_oc: string } | null> {
@@ -77,7 +81,14 @@ export class SapMock implements SapAdapter {
     }
     return contenido
       .split("\n")
-      .filter((linea) => linea.trim() !== "")
-      .map((linea) => RegistroOrdenSchema.parse(JSON.parse(linea)))
+      .map((linea, i) => ({ linea, numero: i + 1 }))
+      .filter(({ linea }) => linea.trim() !== "")
+      .map(({ linea, numero }) => {
+        try {
+          return RegistroOrdenSchema.parse(JSON.parse(linea))
+        } catch {
+          throw new Error(`El SAP simulado está dañado en la línea ${numero} de ${RUTA_ORDENES}; limpia la carpeta out/ y vuelve a intentar`)
+        }
+      })
   }
 }
