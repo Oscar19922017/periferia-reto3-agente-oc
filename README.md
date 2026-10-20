@@ -43,6 +43,7 @@ Abre `http://localhost:3000`. Un solo comando levanta front y backend. Si `OPENR
 | `npm run demo` | `tsx demo.ts`: procesa los 6 casos de `fixtures/reto-03/solicitudes/` llamando las herramientas **sin modelo ni clave**. Imprime por caso `apta`, bloqueos, confirmaciones, `retroactiva` y número de OC o motivo; ejecuta `sol-001` dos veces (idempotencia) y `sol-004`, `sol-005` y `sol-006` con confirmación explícita; termina imprimiendo `out/control.csv`. Limpia `out/` al inicio; es determinista salvo timestamps. |
 | `npm test` | `node --import tsx --test "test/**/*.test.ts"`: tests unitarios y e2e con `node:test`. |
 | `npm run typecheck` | `tsc --noEmit` (TypeScript estricto, sin `any`). |
+| `npm run modulo` | Regenera `modulo/` (bonus PRD 9.4) desde `agent/prompt.md` y `src/knowledge/`; `test/modulo.test.ts` falla si diverge. |
 
 ## API
 
@@ -115,6 +116,8 @@ web/index.html                  front de chat (HTML plano, sin build)
 fixtures/reto-03/               maestros y 6 casos (entregados; no se modifican)
 test/                           node:test
 demo.ts                         los 6 casos sin modelo
+modulo/                         bonus: agent.md, tools/oc.ts y skill/ordenes-compra/SKILL.md
+scripts/construir-modulo.ts     genera modulo/ desde las mismas fuentes que usa la app
 out/                            generado en ejecución (ignorado por git)
 docs/PRD.md · docs/PLAN.md      enunciado y plan de trabajo
 .claude/agents/                 roles del equipo (subagentes de Claude Code)

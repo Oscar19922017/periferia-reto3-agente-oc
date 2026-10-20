@@ -293,7 +293,7 @@ El cambio no es tecnológico: es decidir que la OC es un control, publicar la re
 | Front + API | hecho | `web/index.html` (tool calls visibles, resaltado de confirmación, botones), `src/server.ts` (`/api/chat`, `/api/sessions/:id`, `/api/health`). | Autenticación (SSO corporativo), streaming, historial persistente, multiusuario. |
 | `demo.ts` | hecho | 6 casos sin modelo; `sol-001` dos veces (idempotencia); `sol-004`, `sol-005` y `sol-006` con confirmación explícita; imprime `out/control.csv`. `test/e2e.test.ts` verifica el mismo flujo. | — |
 | Despliegue (link) | hecho | `render.yaml` (Web Service, plan Free, clave solo en el panel de Render). | Dominio propio, TLS gestionado, monitoreo. |
-| Bonus `modulo/` | no hecho | — | Empaquetar `agent.md`, `tools/oc.ts` y `skill/ordenes-compra/SKILL.md` reutilizando (no copiando) `agent/prompt.md`, `src/tools/oc.ts` y `src/knowledge/ordenes-compra.md`. |
+| Bonus `modulo/` | hecho | `modulo/agent.md` y `modulo/skill/ordenes-compra/SKILL.md` se **generan** (`npm run modulo`, `scripts/construir-modulo.ts`) desde `agent/prompt.md` y `src/knowledge/ordenes-compra.md`; `modulo/tools/oc.ts` reexporta `src/tools/oc.ts`. `test/modulo.test.ts` falla si alguna pieza diverge de su fuente. | Publicar como paquete npm con sus tipos. |
 
 Transversal para producción: persistencia (sesiones y correlación en base de datos), autenticación y auditoría de quién confirmó, observabilidad (métricas de tokens, latencia y errores por herramienta), y pruebas de regresión del prompt con casos grabados.
 
