@@ -13,7 +13,8 @@
     "demo": "tsx demo.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"test/**/*.test.ts\"",
-    "modulo": "tsx scripts/construir-modulo.ts"
+    "modulo": "tsx scripts/construir-modulo.ts",
+    "prepare": "node scripts/instalar-hooks.mjs"
   },
   "dependencies": {
     "pdf-lib": "^1.17.1",

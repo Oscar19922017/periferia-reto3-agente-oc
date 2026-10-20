@@ -8,7 +8,10 @@ El planteamiento completo (arquitectura, ciclo del agente, controles, diseño de
 
 [![CI](https://github.com/Oscar19922017/periferia-reto3-agente-oc/actions/workflows/ci.yml/badge.svg)](https://github.com/Oscar19922017/periferia-reto3-agente-oc/actions/workflows/ci.yml)
 
-**CI/CD:** cada push a `main` y cada pull request corre [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (typecheck, 119 tests, `demo.ts` sin modelo y verificación de que `modulo/` no diverge). Render despliega `main` automáticamente desde [`render.yaml`](./render.yaml); la clave del modelo vive solo en el panel de Render.
+**CI/CD:** dos capas de verificación automática y despliegue continuo.
+- **Antes de cada push (local):** el hook [`.githooks/pre-push`](./.githooks/pre-push) corre typecheck, los 119 tests y `demo.ts`; si algo falla, el push no sale. Se activa solo con `npm install`.
+- **En GitHub:** [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) repite typecheck, tests, demo y verifica que `modulo/` no diverja, en cada push a `main` y en cada pull request.
+- **Despliegue:** Render despliega `main` automáticamente desde [`render.yaml`](./render.yaml); la clave del modelo vive solo en el panel de Render.
 
 ## Requisitos
 
