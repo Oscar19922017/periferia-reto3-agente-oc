@@ -26,7 +26,7 @@ function titulo(texto: string): void {
 
 async function procesar(caso: string): Promise<void> {
   console.log(`\n▶ ${caso}`)
-  const validacion = parsear(await oc.validar_solicitud.execute({ caso }, ctx))
+  const validacion = parsear(await oc.validar.execute({ caso }, ctx))
   if (!validacion.ok || !validacion.data) {
     console.log(`  ✗ ${validacion.error}`)
     return

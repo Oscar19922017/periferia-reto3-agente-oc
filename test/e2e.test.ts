@@ -29,7 +29,7 @@ const ejecutar = async (h: { execute(a: never, c: ContextoHerramienta): Promise<
 
 test("el registro expone las cinco herramientas con prefijo oc_", () => {
   const nombres = crearRegistro().definiciones().map((d) => d.nombre).sort()
-  assert.deepEqual(nombres, ["oc_construir_payload", "oc_crear", "oc_generar_evidencia", "oc_leer_paquete", "oc_validar_solicitud"])
+  assert.deepEqual(nombres, ["oc_construir_payload", "oc_crear", "oc_generar_evidencia", "oc_leer_paquete", "oc_validar"])
 })
 
 test("sol-001 se crea sin intervención y la segunda vez es idempotente", async () => {

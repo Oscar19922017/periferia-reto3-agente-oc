@@ -40,7 +40,7 @@ Abre `http://localhost:3000`. Un solo comando levanta front y backend. Si `OPENR
 |---|---|
 | `npm run dev` | `tsx watch src/server.ts`: servidor con recarga. |
 | `npm start` | `tsx src/server.ts`: servidor. |
-| `npm run demo` | `tsx demo.ts`: procesa los 6 casos de `fixtures/reto-03/solicitudes/` llamando las herramientas **sin modelo ni clave**. Imprime por caso `apta`, bloqueos, confirmaciones, `retroactiva` y número de OC o motivo; ejecuta `sol-001` dos veces (idempotencia) y `sol-004` con confirmación explícita. Limpia `out/` al inicio; es determinista salvo timestamps. <!-- TODO: verificar al integrar --> |
+| `npm run demo` | `tsx demo.ts`: procesa los 6 casos de `fixtures/reto-03/solicitudes/` llamando las herramientas **sin modelo ni clave**. Imprime por caso `apta`, bloqueos, confirmaciones, `retroactiva` y número de OC o motivo; ejecuta `sol-001` dos veces (idempotencia) y `sol-004`, `sol-005` y `sol-006` con confirmación explícita; termina imprimiendo `out/control.csv`. Limpia `out/` al inicio; es determinista salvo timestamps. |
 | `npm test` | `node --import tsx --test "test/**/*.test.ts"`: tests unitarios y e2e con `node:test`. |
 | `npm run typecheck` | `tsc --noEmit` (TypeScript estricto, sin `any`). |
 

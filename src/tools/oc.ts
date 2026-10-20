@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { registrarControl } from "../domain/control.ts"
-import { validar } from "../domain/controles.ts"
+import { validar as aplicarControles } from "../domain/controles.ts"
 import { generarEvidencia } from "../domain/evidencia.ts"
 import { cargarMaestros } from "../domain/maestros.ts"
 import { leerPaquete } from "../domain/paquete.ts"
@@ -29,7 +29,7 @@ async function evaluar(directorio: string, caso: string): Promise<Resultado<Eval
   if (!paquete.ok) return paquete
   try {
     const maestros = await cargarMaestros(directorio)
-    return { ok: true, data: { paquete: paquete.data, validacion: validar(paquete.data, maestros) } }
+    return { ok: true, data: { paquete: paquete.data, validacion: aplicarControles(paquete.data, maestros) } }
   } catch (e) {
     return { ok: false, error: `No pude cargar los maestros: ${mensajeDeError(e)}` }
   }
@@ -58,7 +58,7 @@ export const leer_paquete = {
   },
 }
 
-export const validar_solicitud = {
+export const validar = {
   description: "Aplica las reglas de control RC1–RC10 a un caso y devuelve bloqueos, confirmaciones pendientes, valores derivados y si la compra es retroactiva.",
   args: { caso: argCaso },
   async execute(args: { caso: string }, ctx: ContextoHerramienta): Promise<string> {
