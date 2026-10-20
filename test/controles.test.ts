@@ -235,6 +235,26 @@ describe("RC5 · cotización", () => {
     const p = conCotizacionDe(clonar(), 0)
     assert.deepEqual(codigos(validar(p, maestros).confirmaciones), ["RC5"])
   })
+
+  test("el borde exacto del 2 % con decimales no pide confirmación (3 vs 3,06); 3,07 sí", () => {
+    const p = clonar()
+    p.solicitud.cantidad = 1
+    p.solicitud.valor_unitario = 3
+    p.solicitud.valor_total = 3
+    assert.deepEqual(codigos(validar(conCotizacionDe(p, 3.06), maestros).confirmaciones), [])
+    assert.deepEqual(codigos(validar(conCotizacionDe(p, 3.07), maestros).confirmaciones), ["RC5"])
+  })
+
+  test("valor total de la solicitud no positivo pide confirmación sin imprimir infinito", () => {
+    const p = clonar()
+    p.solicitud.cantidad = 1
+    p.solicitud.valor_unitario = 0
+    p.solicitud.valor_total = 0
+    const r = validar(p, maestros)
+    assert.deepEqual(codigos(r.confirmaciones), ["RC5"])
+    const h = unico(r.confirmaciones, "RC5")
+    assert.ok(h.detalle.includes("no es válido") && !h.detalle.includes("∞"), h.detalle)
+  })
 })
 
 describe("RC6 / RC7 · derivados", () => {
@@ -294,6 +314,64 @@ describe("RC8 / RC9 / RC10 · fechas y aritmética", () => {
     const p = conCotizacionDe(clonar(), 11400001)
     p.solicitud.valor_total = 11400001
     assert.deepEqual(codigos(validar(p, maestros).bloqueos), [])
+  })
+
+  test("RC8: fecha de factura ilegible pide confirmación sin marcar retroactiva", () => {
+    const p = clonar("sol-005")
+    assert.ok(p.factura)
+    p.factura.fecha = "Fri, 07 Aug 2026 09:00:00 -0500"
+    const r = validar(p, maestros)
+    assert.deepEqual(codigos(r.confirmaciones), ["RC8"])
+    assert.equal(r.retroactiva, false)
+    const h = unico(r.confirmaciones, "RC8")
+    assert.ok(h.detalle.includes("No se pudo leer") && h.detalle.includes("FC-88231") && h.detalle.includes("Fri, 07 Aug 2026"), h.detalle)
+    assert.ok(h.accion_sugerida.includes("retroactiva"), h.accion_sugerida)
+  })
+
+  test("RC8: una fecha con forma ISO pero inexistente (2026-02-30) también es ilegible", () => {
+    const p = clonar("sol-005")
+    assert.ok(p.factura)
+    p.factura.fecha = "2026-02-30"
+    const r = validar(p, maestros)
+    assert.deepEqual(codigos(r.confirmaciones), ["RC8"])
+    assert.equal(r.retroactiva, false)
+    assert.ok(unico(r.confirmaciones, "RC8").detalle.includes("No se pudo leer"))
+  })
+
+  test("RC9: fecha de aprobación no ISO pide confirmación", () => {
+    const p = clonar()
+    assert.ok(p.aprobacion)
+    p.aprobacion.fecha = "Fri, 19 Aug 2026 10:02:00 -0500"
+    const r = validar(p, maestros)
+    assert.equal(r.apta, true)
+    assert.deepEqual(codigos(r.confirmaciones), ["RC9"])
+    const h = unico(r.confirmaciones, "RC9")
+    assert.ok(h.detalle.includes("No se pudo leer") && h.detalle.includes("Fri, 19 Aug 2026"), h.detalle)
+  })
+
+  test("RC10: cantidad y valor total en cero bloquean aunque haya cotización", () => {
+    const p = clonar()
+    p.solicitud.cantidad = 0
+    p.solicitud.valor_total = 0
+    const r = validar(p, maestros)
+    assert.equal(r.apta, false)
+    assert.deepEqual(codigos(r.bloqueos), ["RC10"])
+    assert.deepEqual(codigos(r.confirmaciones), ["RC5"])
+    assert.ok(!unico(r.confirmaciones, "RC5").detalle.includes("∞"))
+    const h = unico(r.bloqueos, "RC10")
+    assert.ok(h.detalle.includes("cantidad 0") && h.detalle.includes("valor total COP 0"), h.detalle)
+    assert.ok(h.accion_sugerida.includes("positivos"), h.accion_sugerida)
+  })
+
+  test("RC10: cantidad y valor unitario negativos con total positivo bloquean", () => {
+    const p = clonar()
+    p.solicitud.cantidad = -120
+    p.solicitud.valor_unitario = -95000
+    const r = validar(p, maestros)
+    assert.equal(r.apta, false)
+    assert.deepEqual(codigos(r.bloqueos), ["RC10"])
+    const h = unico(r.bloqueos, "RC10")
+    assert.ok(h.detalle.includes("cantidad -120") && h.detalle.includes("COP -95.000"), h.detalle)
   })
 })
 

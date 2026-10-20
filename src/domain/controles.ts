@@ -22,7 +22,14 @@ const formatoPorcentaje = new Intl.NumberFormat("es-CO", { maximumFractionDigits
 
 const monto = (valor: number, moneda: string) => `${moneda} ${formatoNumero.format(valor)}`
 const porcentaje = (fraccion: number) => `${formatoPorcentaje.format(fraccion * 100)} %`
-const esFechaIso = (s: string) => FECHA_ISO.test(s)
+const describirTexto = (s: string) => (s ? ` (texto: "${s}")` : "")
+
+// Fecha de calendario real en YYYY-MM-DD ("2026-02-30" no lo es: V8 la convertiría en 2026-03-02).
+function fechaIsoValida(fecha: string): boolean {
+  if (!FECHA_ISO.test(fecha)) return false
+  const d = new Date(`${fecha}T00:00:00Z`)
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === fecha
+}
 // Campo opcional sin valor útil (undefined o solo espacios). El guard permite usar el valor como string en la rama contraria.
 const ausente = (s: string | undefined): s is undefined | "" => s === undefined || s.trim() === ""
 const mismoEmail = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
@@ -147,13 +154,20 @@ function rc5Cotizacion({ paquete: { solicitud, cotizacion }, resultado }: Contex
       "Pida al solicitante adjuntar la cotización del proveedor, o confirme que la OC se crea sin cotización.",
     )
   }
+  if (solicitud.valor_total <= 0) {
+    return confirmar(
+      `El valor total de la solicitud (${valor}) no es válido: debe ser mayor que cero; no es posible contrastarlo con la cotización.`,
+      "Pida al solicitante corregir el valor total de la solicitud antes de crear la OC.",
+    )
+  }
   if (cotizacion.total === 0) {
     return confirmar(
       `No se pudo leer el total de la cotización para contrastarlo con el valor de la solicitud (${valor}).`,
       "Revise la cotización manualmente y confirme el valor, o pida al solicitante una cotización legible.",
     )
   }
-  const desviacion = Math.abs(cotizacion.total - solicitud.valor_total) / solicitud.valor_total
+  // Redondeo a 6 decimales: 3,06 vs 3 da 0,020000000000000018 en coma flotante y debe contar como 2 % exacto.
+  const desviacion = Math.round((Math.abs(cotizacion.total - solicitud.valor_total) / solicitud.valor_total) * 1e6) / 1e6
   if (desviacion <= TOLERANCIA_COTIZACION) return
   confirmar(
     `El valor de la solicitud ${valor} difiere del total de la cotización ${monto(cotizacion.total, cotizacion.moneda || solicitud.moneda)} en ${porcentaje(desviacion)} (tolerancia ${porcentaje(TOLERANCIA_COTIZACION)}).`,
@@ -205,12 +219,19 @@ function rc7CondicionesPago({ paquete: { solicitud }, resultado }: Contexto): vo
 // ── RC8 · Factura anterior a la solicitud (OC retroactiva) ───────────────────
 
 function rc8Retroactiva({ paquete: { solicitud, factura }, resultado }: Contexto): void {
-  if (!factura || !esFechaIso(factura.fecha) || factura.fecha >= solicitud.fecha_solicitud) return
+  if (!factura) return
+  const confirmar = (detalle: string, accion: string) => anotar(resultado.confirmaciones, "RC8", detalle, accion)
+  const numero = factura.numero || "(sin número)"
+  if (!fechaIsoValida(factura.fecha)) {
+    return confirmar(
+      `No se pudo leer la fecha de la factura ${numero}${describirTexto(factura.fecha)}; no es posible saber si es anterior a la solicitud del ${solicitud.fecha_solicitud}.`,
+      "Revise la factura y confirme si su fecha es anterior a la solicitud (la OC sería retroactiva), o pida al solicitante una factura legible.",
+    )
+  }
+  if (factura.fecha >= solicitud.fecha_solicitud) return
   resultado.retroactiva = true
-  anotar(
-    resultado.confirmaciones,
-    "RC8",
-    `La factura ${factura.numero || "(sin número)"} fue emitida el ${factura.fecha}, antes de la fecha de solicitud ${solicitud.fecha_solicitud}: la OC sería retroactiva.`,
+  confirmar(
+    `La factura ${numero} fue emitida el ${factura.fecha}, antes de la fecha de solicitud ${solicitud.fecha_solicitud}: la OC sería retroactiva.`,
     "Confirme que la OC se crea de forma retroactiva; quedará marcada como tal en el registro de control.",
   )
 }
@@ -218,19 +239,43 @@ function rc8Retroactiva({ paquete: { solicitud, factura }, resultado }: Contexto
 // ── RC9 · Aprobación no anterior a la solicitud ──────────────────────────────
 
 function rc9FechaAprobacion({ paquete: { solicitud, aprobacion }, resultado }: Contexto): void {
-  if (!aprobacion || !esFechaIso(aprobacion.fecha) || aprobacion.fecha >= solicitud.fecha_solicitud) return
-  anotar(
-    resultado.confirmaciones,
-    "RC9",
+  if (!aprobacion) return
+  const confirmar = (detalle: string, accion: string) => anotar(resultado.confirmaciones, "RC9", detalle, accion)
+  if (!fechaIsoValida(aprobacion.fecha)) {
+    return confirmar(
+      `No se pudo leer la fecha de la aprobación de ${aprobacion.de}${describirTexto(aprobacion.fecha)}; no es posible verificar que sea posterior a la solicitud del ${solicitud.fecha_solicitud}.`,
+      "Revise el correo de aprobación y confirme que es posterior a la solicitud, o pida al líder reenviarlo.",
+    )
+  }
+  if (aprobacion.fecha >= solicitud.fecha_solicitud) return
+  confirmar(
     `La aprobación de ${aprobacion.de} tiene fecha ${aprobacion.fecha}, anterior a la fecha de solicitud ${solicitud.fecha_solicitud}.`,
     "Verifique con el solicitante que esa aprobación corresponde a esta solicitud o pida al líder una aprobación posterior a la solicitud.",
   )
 }
 
-// ── RC10 · cantidad × valor_unitario = valor_total (± 1) ─────────────────────
+// ── RC10 · valores positivos y cantidad × valor_unitario = valor_total (± 1) ─
+
+function valoresInvalidos({ cantidad, valor_unitario, valor_total, moneda }: Solicitud): string[] {
+  const problemas: string[] = []
+  if (cantidad <= 0) problemas.push(`cantidad ${formatoNumero.format(cantidad)} (debe ser mayor que cero)`)
+  if (valor_unitario < 0) problemas.push(`valor unitario ${monto(valor_unitario, moneda)} (no puede ser negativo)`)
+  if (valor_total <= 0) problemas.push(`valor total ${monto(valor_total, moneda)} (debe ser mayor que cero)`)
+  return problemas
+}
 
 function rc10Aritmetica({ paquete: { solicitud }, resultado }: Contexto): void {
   const { cantidad, valor_unitario, valor_total, moneda } = solicitud
+  const problemas = valoresInvalidos(solicitud)
+  if (problemas.length) {
+    anotar(
+      resultado.bloqueos,
+      "RC10",
+      `La solicitud trae valores no válidos: ${problemas.join("; ")}.`,
+      "Pida al solicitante corregir la cantidad y los valores de la solicitud; deben ser positivos.",
+    )
+    return
+  }
   const calculado = cantidad * valor_unitario
   const diferencia = Math.abs(calculado - valor_total)
   if (diferencia <= TOLERANCIA_ARITMETICA) return
