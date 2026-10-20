@@ -116,7 +116,7 @@ export const OrdenCompraSchema = z.object({
     .array(
       z.object({
         numero: z.number().int().positive(),
-        descripcion: z.string().max(40),
+        descripcion: z.string().min(1).max(40),
         cantidad: z.number().positive(),
         unidad: z.enum(["UN", "H", "MES"]),
         precio_unitario: z.number().nonnegative(),

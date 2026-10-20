@@ -1,6 +1,6 @@
 # SOLUCION.md — Agente "Órdenes de Compra SAP" (Reto 3)
 
-Documento de planteamiento de la solución. Sigue la estructura obligatoria de la sección 9.1 del PRD. Donde algo depende de piezas que se integran en la fase 2 (`src/tools/oc.ts`, `demo.ts`, despliegue), queda marcado con `<!-- TODO: verificar al integrar -->`.
+Documento de planteamiento de la solución. Sigue la estructura obligatoria de la sección 9.1 del PRD.
 
 ---
 
@@ -63,7 +63,7 @@ Dependencias (PRD sección 8 pide justificarlas):
 | `zod` | runtime | Obligatorio por el PRD para los argumentos de herramientas; también valida maestros, solicitud y `OrdenCompra`. Zod 4 genera el JSON Schema de cada herramienta (`z.toJSONSchema`) sin librería adicional. |
 | `tsx` | runtime | Ejecuta TypeScript sin paso de build (`npm start`, `npm run demo`, `node --import tsx --test`). |
 | `typescript`, `@types/node` | dev | `npm run typecheck` (`strict`, `noUncheckedIndexedAccess`). |
-| `pdf-lib` | runtime, opcional | Solo si se entrega el P1 de HU-4 (evidencia en PDF). <!-- TODO: verificar al integrar --> |
+| `pdf-lib` | runtime | P1 de HU-4: `out/<caso>/aprobacion.pdf` con el mismo contenido que el `.txt` (bytes deterministas). Si falla, el `.txt` sigue siendo la evidencia P0. |
 
 Sin framework web, sin framework de agentes, sin cliente HTTP (se usa `fetch` nativo de Node 20+).
 
@@ -88,7 +88,7 @@ La clase `Agente` mantiene las sesiones en memoria (`Map<sessionId, { mensajes, 
 |---|---|
 | Prompt | Regla 4 de `agent/prompt.md`: ante `confirmaciones`, mostrar payload y hallazgos, terminar el turno con una pregunta que contenga "confirmas", y llamar `oc_crear` con `confirmado: true` solo si el mensaje inmediatamente anterior del usuario confirma de forma explícita. |
 | Ciclo | `pideConfirmacion(reply, llamadas)`: el turno se marca `needsConfirmation` cuando la respuesta termina en `?` y, además, alguna herramienta del turno devolvió `confirmaciones` no vacías / `requiere_confirmacion: true` / un error que contiene "confirma", o la propia respuesta contiene "confirm". El front resalta el mensaje y ofrece los botones "Confirmo, procede." y "No confirmo, no ejecutes la acción.". |
-| Servidor (la que manda) | `oc_crear` sin `confirmado: true` devuelve `{ ok: false }` cuando hay confirmaciones pendientes, y devuelve `{ ok: false }` siempre que haya bloqueos. Aunque el modelo se equivoque, no se crea una OC sin confirmación. <!-- TODO: verificar al integrar --> |
+| Servidor (la que manda) | `oc_crear` sin `confirmado: true` devuelve `{ ok: false }` cuando hay confirmaciones pendientes, y devuelve `{ ok: false }` siempre que haya bloqueos. Aunque el modelo se equivoque, no se crea una OC sin confirmación (verificado en `test/e2e.test.ts`). |
 
 **Adaptador LLM.** `AdaptadorLLM` (`src/llm/adapter.ts`) expone `enviar(mensajes, herramientas) → { contenido, llamadas[], tokens }` y nada más. `AdaptadorOpenRouter` traduce los mensajes al formato `chat/completions` (tool calls con `id`, `function.name`, `function.arguments` como JSON crudo), usa `temperature: 0` y lee `usage` para el contador de tokens. Cambiar de proveedor es escribir otra clase que implemente la interfaz; el ciclo no se toca.
 
@@ -120,7 +120,7 @@ Precios públicos aproximados a la fecha de este documento; OpenRouter los publi
 
 ## 5. Matriz de controles (RC1–RC10)
 
-Implementación en `src/domain/controles.ts`: `validar(paquete, maestros): ResultadoValidacion` es una **función pura** (sin I/O), una función por regla, que devuelve `bloqueos[]`, `confirmaciones[]`, `derivados{}`, `retroactiva`, y el `proveedor` y `aprobador` resueltos para que `payload.ts` no vuelva a buscarlos. Cada `Hallazgo` lleva `codigo`, `detalle` con los valores en conflicto (montos formateados `es-CO`) y `accion_sugerida`. `apta = bloqueos.length === 0`. <!-- TODO: verificar al integrar (nombres de funciones y mensajes exactos) -->
+Implementación en `src/domain/controles.ts`: `validar(paquete, maestros): ResultadoValidacion` es una **función pura** (sin I/O), una función por regla, que devuelve `bloqueos[]`, `confirmaciones[]`, `derivados{}`, `retroactiva`, y el `proveedor` y `aprobador` resueltos para que `payload.ts` no vuelva a buscarlos. Cada `Hallazgo` lleva `codigo`, `detalle` con los valores en conflicto (montos formateados `es-CO`) y `accion_sugerida`. `apta = bloqueos.length === 0`. La herramienta `oc_validar` la invoca después de `leerPaquete` y `cargarMaestros`; `oc_construir_payload` y `oc_crear` la vuelven a ejecutar en lugar de confiar en un resultado anterior.
 
 | Regla | Tipo | Cómo se implementa (`controles.ts`) | Caso que la ejercita |
 |---|---|---|---|
@@ -252,7 +252,7 @@ El cambio no es tecnológico: es decidir que la OC es un control, publicar la re
 | # | Decisión | Alternativa descartada | Por qué |
 |---|---|---|---|
 | a | **Ciclo del agente propio** (`loop.ts`, ~150 líneas) sin framework de agentes. | LangChain / Vercel AI SDK. | El PRD evalúa el ciclo (tope de iteraciones, confirmación, log, errores). Con un framework esas reglas quedan dentro de abstracciones ajenas y explicar "cada línea" se vuelve explicar la librería. El ciclo propio es transparente, se prueba con `node:test` y no agrega dependencias. Se pierde streaming y *retries* gratis; aquí no hacen falta. |
-| b | **`oc_crear` revalida y reconstruye el payload en el servidor** a partir del `caso`; no acepta el payload del modelo como fuente de verdad. | Aceptar `{ caso, payload, confirmado }` y crear lo que mande el modelo (lectura literal de PRD 6.2). | Riesgo explícito del PRD (sección 10): que el modelo "arregle" un monto. Si el servidor vuelve a leer, validar y construir, el modelo no puede alterar montos, proveedor ni centro de costo aunque alucine. Costo: una lectura extra de disco por creación, irrelevante. <!-- TODO: verificar al integrar si oc_crear acepta además un payload opcional y lo compara --> |
+| b | **`oc_crear` revalida y reconstruye el payload en el servidor** a partir del `caso`; no acepta el payload del modelo como fuente de verdad. | Aceptar `{ caso, payload, confirmado }` y crear lo que mande el modelo (lectura literal de PRD 6.2). | Riesgo explícito del PRD (sección 10): que el modelo "arregle" un monto. Si el servidor vuelve a leer, validar y construir, el modelo no puede alterar montos, proveedor ni centro de costo aunque alucine. Costo: una lectura extra de disco por creación, irrelevante. Por eso todas las herramientas reciben solo `{ caso }` (y `oc_crear` además `confirmado?`): el contrato mínimo del PRD 6.2 se cumple en nombres, salidas y prioridades, con argumentos más estrictos que los sugeridos. |
 | c | **Node + `tsx` sin build.** | Bun, o compilar con `tsc` a `dist/`. | Arranque en un comando, misma ruta en local y en Render, sin paso de build que pueda divergir. Bun es más rápido pero menos portable en Windows y en algunos PaaS; `tsc` + `dist/` duplica rutas (`out/` relativo a la raíz) y suma un paso. Costo: `tsx` es dependencia de runtime. |
 | d | **Servidor con estado en memoria en Render** (proceso vivo, disco local). | Serverless (Vercel/Lambda). | Las sesiones viven en memoria y `out/` (OC, control, evidencia, log) necesita disco y proceso persistente; en serverless cada invocación arranca en frío y el sistema de archivos es efímero. Costo: una réplica, y las sesiones se pierden al reiniciar (aceptable: el PRD no pide persistencia). |
 | e | **Tests con `node:test` + `node:assert/strict`.** | vitest / jest. | Cero dependencias, corre con `node --import tsx --test`, suficiente para funciones puras y archivos temporales. Se pierde *watch mode* y *snapshots*; no se usan. |
@@ -274,7 +274,7 @@ El cambio no es tecnológico: es decidir que la OC es un control, publicar la re
 10. La **unidad** se infiere de la descripción (hora/horas → `H`, servicio mensual → `MES`, resto → `UN`); la descripción se recorta a 40 caracteres sin partir palabra cuando es posible.
 11. **Sociedad y organización de compras** son constantes `1000` (Periferia opera una sola de cada una).
 12. Los **maestros son completos y estáticos** (se cargan de `fixtures/` en cada llamada); en producción se consultan a SAP.
-13. `confirmado_por` registra a la analista de la sesión (no hay autenticación; el PRD la excluye). <!-- TODO: verificar al integrar qué valor escribe oc_crear -->
+13. `confirmado_por` registra `analista (sesión <sessionId>)` cuando `oc_crear` recibe `confirmado: true` y había confirmaciones pendientes; `null` en caso contrario (no hay autenticación; el PRD la excluye).
 14. **`out/` se limpia** solo al inicio de `demo.ts`; el servidor acumula (así la idempotencia y el log sobreviven entre turnos).
 15. El `sessionId` lo genera el front (`crypto.randomUUID`); no hay usuarios ni roles. Quien tiene el link puede procesar casos; el tope de tokens por sesión acota el gasto.
 
@@ -284,16 +284,16 @@ El cambio no es tecnológico: es decidir que la OC es un control, publicar la re
 
 | HU | Estado | Evidencia | Qué falta para producción |
 |---|---|---|---|
-| HU-1 Leer el paquete | hecho <!-- TODO: verificar al integrar --> | `src/domain/paquete.ts` + `oc_leer_paquete`; adjunto ausente → `null` + `faltantes[]`; `caso` validado contra `[\w-]+`. | Leer `.xlsx` real (`oc_leer_excel`, P1), extraer texto de `cotizacion.pdf` / `factura.pdf` (pdf-parse + OCR para escaneados), leer `.eml` real y buzón de correo (Graph API / IMAP). |
-| HU-2 Validar | hecho <!-- TODO: verificar al integrar --> | `src/domain/controles.ts`, RC1–RC10, tabla de la sección 5; tests con los 6 casos + sintéticos. | Maestros en tiempo real desde SAP; matriz de aprobación con delegaciones y vigencias; RC11 (NIT cotización vs solicitud). |
-| HU-3 Payload | hecho <!-- TODO: verificar al integrar --> | `src/domain/payload.ts`, `OrdenCompraSchema`, `out/<caso>/trazabilidad.json`. | Varias posiciones; precio neto vs IVA incluido según política; `PurchasingGroup`, `GLAccount`, `Plant` por parámetros. |
-| HU-4 Evidencia | hecho P0 · P1 <!-- TODO: verificar al integrar (pdf) --> | `src/domain/evidencia.ts` → `aprobacion.txt` + `SHA-256`; `aprobacion.pdf` si se integró `pdf-lib`. | PDF desde el `.eml` original con cabeceras completas; firma digital o sello de tiempo si auditoría lo exige; adjuntar a la OC en SAP (`API_CV_ATTACHMENT_SRV`). |
-| HU-5 Crear OC | hecho <!-- TODO: verificar al integrar --> | `src/sap/mock.ts` (numeración desde 4500000001, idempotencia por `solicitud_id`), `src/domain/control.ts` (`out/control.csv`, una fila por intento). | Adaptador OData real (sección 6), tabla de correlación en base de datos, reintentos y errores parciales. |
+| HU-1 Leer el paquete | hecho | `src/domain/paquete.ts` + `oc_leer_paquete`; adjunto ausente → `null` + `faltantes[]`; `caso` validado contra `[\w-]+`. | Leer `.xlsx` real (`oc_leer_excel`, P1), extraer texto de `cotizacion.pdf` / `factura.pdf` (pdf-parse + OCR para escaneados), leer `.eml` real y buzón de correo (Graph API / IMAP). |
+| HU-2 Validar | hecho | `src/domain/controles.ts`, RC1–RC10, tabla de la sección 5; tests con los 6 casos + sintéticos. | Maestros en tiempo real desde SAP; matriz de aprobación con delegaciones y vigencias; RC11 (NIT cotización vs solicitud). |
+| HU-3 Payload | hecho | `src/domain/payload.ts`, `OrdenCompraSchema`, `out/<caso>/trazabilidad.json`. | Varias posiciones; precio neto vs IVA incluido según política; `PurchasingGroup`, `GLAccount`, `Plant` por parámetros. |
+| HU-4 Evidencia | hecho P0 y P1 | `src/domain/evidencia.ts` → `aprobacion.txt` + `SHA-256` y `aprobacion.pdf` (`pdf-lib`). | PDF desde el `.eml` original con cabeceras completas; firma digital o sello de tiempo si auditoría lo exige; adjuntar a la OC en SAP (`API_CV_ATTACHMENT_SRV`). |
+| HU-5 Crear OC | hecho | `src/sap/mock.ts` (numeración desde 4500000001, idempotencia por `solicitud_id`), `src/domain/control.ts` (`out/control.csv`, una fila por intento). | Adaptador OData real (sección 6), tabla de correlación en base de datos, reintentos y errores parciales. |
 | HU-6 Errores | hecho | `Resultado<T>` `{ ok:false, error }` en todo el dominio; `RegistroHerramientas.ejecutar` nunca lanza; `loop.ts` convierte fallos del proveedor en texto de chat (CA5). | Clasificación de errores (recuperable / no) y alertas; *circuit breaker* al proveedor LLM. |
 | Front + API | hecho | `web/index.html` (tool calls visibles, resaltado de confirmación, botones), `src/server.ts` (`/api/chat`, `/api/sessions/:id`, `/api/health`). | Autenticación (SSO corporativo), streaming, historial persistente, multiusuario. |
-| `demo.ts` | <!-- TODO: verificar al integrar --> | 6 casos sin modelo, `sol-001` dos veces (idempotencia), `sol-004` con confirmación. | — |
-| Despliegue (link) | <!-- TODO: verificar al integrar (Render) --> | `render.yaml`. | Dominio propio, TLS gestionado, monitoreo. |
-| Bonus `modulo/` | no hecho <!-- TODO: verificar al integrar --> | — | Empaquetar `agent.md`, `tools/oc.ts` y `skill/ordenes-compra/SKILL.md` reutilizando (no copiando) `agent/prompt.md`, `src/tools/oc.ts` y `src/knowledge/ordenes-compra.md`. |
+| `demo.ts` | hecho | 6 casos sin modelo; `sol-001` dos veces (idempotencia); `sol-004`, `sol-005` y `sol-006` con confirmación explícita; imprime `out/control.csv`. `test/e2e.test.ts` verifica el mismo flujo. | — |
+| Despliegue (link) | hecho | `render.yaml` (Web Service, plan Free, clave solo en el panel de Render). | Dominio propio, TLS gestionado, monitoreo. |
+| Bonus `modulo/` | no hecho | — | Empaquetar `agent.md`, `tools/oc.ts` y `skill/ordenes-compra/SKILL.md` reutilizando (no copiando) `agent/prompt.md`, `src/tools/oc.ts` y `src/knowledge/ordenes-compra.md`. |
 
 Transversal para producción: persistencia (sesiones y correlación en base de datos), autenticación y auditoría de quién confirmó, observabilidad (métricas de tokens, latencia y errores por herramienta), y pruebas de regresión del prompt con casos grabados.
 
@@ -308,11 +308,11 @@ El candidato construyó la solución con **Claude Code** (Anthropic) como asiste
 - **Para qué se usó**: diseño del plan (`docs/PLAN.md`) y de los contratos; código de dominio, herramientas, ciclo y servidor; tests; documentación; revisión cruzada (QA) antes de cada merge.
 - **Qué se revisó a mano**: cada archivo antes del commit; el candidato puede explicar cada línea.
 
-Qué se descartó de lo que el asistente propuso y por qué: <!-- TODO: completar con ejemplos reales -->
+Qué se descartó de lo que el asistente propuso y por qué:
 
-1. Propuso usar un framework de agentes (Vercel AI SDK) para el ciclo. Se descartó: el ciclo es lo que se evalúa y debe ser legible y propio (sección 8a).
-2. Propuso que `oc_crear` recibiera y usara el payload que manda el modelo, siguiendo literalmente PRD 6.2. Se descartó: el servidor revalida y reconstruye (sección 8b), porque es la mitigación al riesgo de que el modelo "arregle" montos.
-3. Propuso *matching* difuso de nombres de proveedor (distancia de Levenshtein) para RC1. Se descartó por el riesgo de falsos positivos: igualdad exacta sobre el nombre normalizado y, en duda, bloqueo con la sugerencia de pedir el NIT.
+1. Propuso lanzar los subagentes con el rol escrito solo en el prompt de cada uno, sin dejar rastro en el repositorio. Se descartó: los roles debían existir como archivos versionados (`.claude/agents/`) para que el proceso fuera visible y defendible, no solo el resultado.
+2. Propuso Vercel como opción de despliegue junto a Render. Se descartó Vercel: es serverless, las sesiones en memoria y los archivos de `out/` no sobreviven entre invocaciones y el tiempo por request es corto para un turno con varias llamadas al modelo (sección 8d).
+3. Al implementar `oc_crear`, la lectura literal del contrato PRD 6.2 (`{ caso, payload, confirmado }`) habría dejado al modelo como fuente del payload. Se descartó en favor de revalidar y reconstruir en el servidor (sección 8b); el riesgo de que el modelo "arregle" un monto pesa más que la fidelidad literal a la firma sugerida.
 
 ---
 

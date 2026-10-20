@@ -1,5 +1,6 @@
 import { appendFile, mkdir, stat } from "node:fs/promises"
 import path from "node:path"
+import { enCola } from "./cola.ts"
 import type { FilaControl } from "./tipos.ts"
 
 // Log de control para contabilidad/auditoría (PRD HU-5): una fila por intento en out/control.csv.
@@ -33,9 +34,12 @@ async function tieneContenido(ruta: string): Promise<boolean> {
 }
 
 // Agrega la fila; escribe el encabezado solo cuando el archivo no existe (o está vacío).
-export async function registrarControl(directorio: string, fila: FilaControl): Promise<void> {
+// En cola por archivo para que dos intentos simultáneos no dupliquen el encabezado.
+export function registrarControl(directorio: string, fila: FilaControl): Promise<void> {
   const ruta = path.join(directorio, RUTA_CONTROL)
-  await mkdir(path.dirname(ruta), { recursive: true })
-  const encabezado = (await tieneContenido(ruta)) ? "" : `${COLUMNAS_CONTROL.join(",")}\n`
-  await appendFile(ruta, `${encabezado}${formatearFilaControl(fila)}\n`, "utf8")
+  return enCola(ruta, async () => {
+    await mkdir(path.dirname(ruta), { recursive: true })
+    const encabezado = (await tieneContenido(ruta)) ? "" : `${COLUMNAS_CONTROL.join(",")}\n`
+    await appendFile(ruta, `${encabezado}${formatearFilaControl(fila)}\n`, "utf8")
+  })
 }

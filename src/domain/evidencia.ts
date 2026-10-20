@@ -76,7 +76,8 @@ async function leerAprobacion(directorio: string, caso: string): Promise<Resulta
   try {
     return { ok: true, data: AprobacionCrudaSchema.parse(JSON.parse(crudo)) }
   } catch (e) {
-    return { ok: false, error: `El correo de aprobación del caso "${caso}" está malformado: ${mensajeDeError(e)}` }
+    const motivo = e instanceof z.ZodError ? z.prettifyError(e) : mensajeDeError(e)
+    return { ok: false, error: `El correo de aprobación del caso "${caso}" está malformado: ${motivo}` }
   }
 }
 

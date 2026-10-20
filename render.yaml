@@ -1,0 +1,20 @@
+# Blueprint de Render: un servicio web Node con estado en memoria y escritura en out/.
+services:
+  - type: web
+    name: agente-periferia-reto3
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: OPENROUTER_API_KEY
+        sync: false # se ingresa en el panel de Render, nunca en el repositorio
+      - key: LLM_MODEL
+        value: openai/gpt-4o-mini
+      - key: MAX_ITERACIONES
+        value: "25"
+      - key: MAX_TOKENS_SESION
+        value: "200000"

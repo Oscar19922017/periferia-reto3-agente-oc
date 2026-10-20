@@ -94,7 +94,7 @@ test("sol-001: payload válido con proveedor del maestro, pago e IVA de la solic
   assert.equal(trazabilidad["proveedor.codigo_sap"], "maestro.proveedores")
   assert.equal(trazabilidad["referencia.cotizacion_ref"], "cotizacion")
   assert.equal(trazabilidad["referencia.correo_id"], "correo")
-  assert.equal(trazabilidad["aprobador.email"], "aprobacion")
+  assert.equal(trazabilidad["aprobador.email"], "maestro.centros-costo")
   assert.equal(trazabilidad["aprobador.evidencia_sha256"], "evidencia")
   assert.equal(trazabilidad["sociedad"], "constante")
 })
