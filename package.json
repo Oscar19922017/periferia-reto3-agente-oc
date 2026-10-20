@@ -12,7 +12,8 @@
     "start": "tsx src/server.ts",
     "demo": "tsx demo.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"test/**/*.test.ts\""
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "modulo": "tsx scripts/construir-modulo.ts"
   },
   "dependencies": {
     "pdf-lib": "^1.17.1",
