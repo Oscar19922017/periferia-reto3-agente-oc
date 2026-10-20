@@ -8,7 +8,13 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src", "demo.ts"]
+  "include": [
+    "src",
+    "test",
+    "demo.ts"
+  ]
 }
