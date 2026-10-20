@@ -20,7 +20,11 @@ const entero = (v: string | undefined, porDefecto: number) => (v && Number.isFin
 async function cargarSystemPrompt(): Promise<string> {
   const prompt = await readFile(path.join(RAIZ, "agent", "prompt.md"), "utf8")
   const dirConocimiento = path.join(RAIZ, "src", "knowledge")
-  const archivos = (await readdir(dirConocimiento)).filter((f) => f.endsWith(".md")).sort()
+  const archivos = await readdir(dirConocimiento).then(
+    (lista) => lista.filter((f) => f.endsWith(".md")).sort(),
+    () => [] as string[], // sin carpeta de conocimiento el agente arranca solo con el prompt
+  )
+  if (archivos.length === 0) console.warn("Aviso: no se encontró conocimiento en src/knowledge/; el agente usa solo agent/prompt.md")
   const conocimiento = await Promise.all(archivos.map((f) => readFile(path.join(dirConocimiento, f), "utf8")))
   return [prompt, ...conocimiento].join("\n\n---\n\n")
 }
