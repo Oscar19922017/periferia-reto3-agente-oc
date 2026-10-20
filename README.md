@@ -6,6 +6,10 @@ El planteamiento completo (arquitectura, ciclo del agente, controles, diseño de
 
 **Link de prueba:** https://periferia-reto3-agente-oc.onrender.com (sin clave de acceso; link público). Corre en el plan gratuito de Render: tras 15 minutos sin uso se duerme y la primera petición tarda ~1 minuto en despertarlo.
 
+[![CI](https://github.com/Oscar19922017/periferia-reto3-agente-oc/actions/workflows/ci.yml/badge.svg)](https://github.com/Oscar19922017/periferia-reto3-agente-oc/actions/workflows/ci.yml)
+
+**CI/CD:** cada push a `main` y cada pull request corre [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (typecheck, 119 tests, `demo.ts` sin modelo y verificación de que `modulo/` no diverge). Render despliega `main` automáticamente desde [`render.yaml`](./render.yaml); la clave del modelo vive solo en el panel de Render.
+
 ## Requisitos
 
 - **Node 20.12 o superior** (usa `process.loadEnvFile` y `fetch` nativo). Desarrollado con Node 22.

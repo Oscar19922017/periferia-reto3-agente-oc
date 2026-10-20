@@ -1,0 +1,26 @@
+# CI: cada push a main y cada pull request deben pasar typecheck, tests y la demo sin modelo.
+# CD: Render despliega main automáticamente cuando este flujo ya pasó (ver render.yaml).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    name: typecheck · tests · demo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Demo sin modelo (6 casos, idempotencia y confirmación)
+        run: npm run demo
+      - name: El módulo reutilizable no diverge de sus fuentes
+        run: npm run modulo && git diff --exit-code -- modulo/
