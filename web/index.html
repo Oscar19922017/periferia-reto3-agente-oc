@@ -3,125 +3,236 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Agente Periferia</title>
+  <title>Agente de Órdenes de Compra · Periferia</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
   <style>
     :root {
-      --bg: #f6f7f5; --panel: #ffffff; --text: #1d2321; --muted: #66706c; --border: #dfe3e0;
-      --accent: #1f6b45; --accent-text: #ffffff; --user: #e5f1ea;
-      --tool: #f1f3f2; --ok: #1f7a4a; --err: #b3261e; --warn-bg: #fff4d6; --warn-border: #d9a400;
+      --bg: #f3f5f4; --panel: #ffffff; --text: #1b211f; --muted: #6b7571; --border: #e1e6e3;
+      --accent: #1f6b45; --accent-hover: #185637; --accent-text: #ffffff; --accent-soft: #e6f2eb;
+      --user: #dcefe4; --tool-bg: #f6f8f7; --tool-border: #e1e6e3; --code: #eef1ef;
+      --ok: #1f7a4a; --err: #b3261e; --warn: #c98a00; --warn-bg: #fff7e0; --warn-border: #f0c450;
+      --shadow: 0 1px 2px rgba(20, 30, 25, .06), 0 4px 16px rgba(20, 30, 25, .05);
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #121614; --panel: #1a1f1d; --text: #e6ebe8; --muted: #9aa5a0; --border: #2d3431;
-        --accent: #3fa772; --accent-text: #0d1310; --user: #1f3329;
-        --tool: #222826; --ok: #5cc98f; --err: #f2867d; --warn-bg: #3a3014; --warn-border: #d9a400;
+        --bg: #101412; --panel: #181d1b; --text: #e7ece9; --muted: #98a39e; --border: #2a312e;
+        --accent: #3fa772; --accent-hover: #51b983; --accent-text: #0b140f; --accent-soft: #1b2f24;
+        --user: #1e3328; --tool-bg: #1d2320; --tool-border: #2a312e; --code: #232927;
+        --ok: #5cc98f; --err: #f2867d; --warn: #e2b23a; --warn-bg: #2d2611; --warn-border: #8a6a16;
+        --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
       }
     }
     * { box-sizing: border-box; }
-    body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
-    .app { max-width: 920px; margin: 0 auto; height: 100dvh; display: flex; flex-direction: column; padding: 0 16px; }
-    header { padding: 14px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-    header h1 { font-size: 17px; margin: 0; }
-    header small { color: var(--muted); }
-    header button { background: none; border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
-    #mensajes { flex: 1; overflow-y: auto; padding: 16px 0; display: flex; flex-direction: column; gap: 12px; }
-    .msg { padding: 10px 14px; border-radius: 12px; max-width: 100%; overflow-x: auto; }
-    .msg.user { background: var(--user); align-self: flex-end; max-width: 80%; white-space: pre-wrap; }
-    .msg.agent { background: var(--panel); border: 1px solid var(--border); }
-    .msg.agent.confirmar { border: 2px solid var(--warn-border); background: var(--warn-bg); }
-    .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--warn-border); color: #1d1600; margin-bottom: 6px; }
-    .msg table { border-collapse: collapse; margin: 8px 0; font-size: 14px; }
-    .msg th, .msg td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
-    .msg pre { background: var(--tool); padding: 8px; border-radius: 8px; overflow-x: auto; }
-    .tools { display: flex; flex-direction: column; gap: 4px; }
-    details.tool { background: var(--tool); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
-    details.tool summary { cursor: pointer; font-family: ui-monospace, Consolas, monospace; }
-    details.tool .ok { color: var(--ok); } details.tool .err { color: var(--err); }
-    details.tool pre { white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; font-size: 12px; }
-    .pensando { color: var(--muted); font-style: italic; }
-    .acciones { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-    form { display: flex; gap: 8px; padding: 12px 0 16px; border-top: 1px solid var(--border); }
-    textarea { flex: 1; resize: none; font: inherit; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel); color: var(--text); min-height: 46px; max-height: 160px; }
-    button.primario { background: var(--accent); color: var(--accent-text); border: 0; border-radius: 10px; padding: 0 18px; font-weight: 600; cursor: pointer; }
-    button.secundario { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-    button:disabled { opacity: .5; cursor: default; }
+    html, body { height: 100%; }
+    body { margin: 0; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+    .app { height: 100dvh; display: flex; flex-direction: column; }
+
+    header { background: var(--panel); border-bottom: 1px solid var(--border); }
+    .header-inner { max-width: 1040px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 14px; }
+    .logo { width: 40px; height: 40px; border-radius: 10px; background: var(--accent); color: var(--accent-text); display: grid; place-items: center; font-weight: 700; font-size: 14px; letter-spacing: .5px; flex-shrink: 0; }
+    .titulo { flex: 1; min-width: 0; }
+    .titulo h1 { font-size: 16px; margin: 0; font-weight: 650; }
+    .titulo .sub { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+    .dot.on { background: var(--ok); } .dot.off { background: var(--err); }
+    .btn { font: inherit; cursor: pointer; border-radius: 9px; padding: 8px 14px; border: 1px solid var(--border); background: var(--panel); color: var(--text); }
+    .btn:hover { background: var(--bg); }
+    .btn.primario { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+    .btn.primario:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn:disabled { opacity: .5; cursor: default; }
+
+    main { flex: 1; overflow-y: auto; }
+    .feed { max-width: 1040px; margin: 0 auto; padding: 20px 16px 12px; display: flex; flex-direction: column; gap: 18px; }
+    .feed > * { flex-shrink: 0; }
+
+    .bienvenida { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 22px 24px; box-shadow: var(--shadow); }
+    .bienvenida h2 { margin: 0 0 6px; font-size: 18px; }
+    .bienvenida p { margin: 0 0 14px; color: var(--muted); }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 999px; padding: 7px 13px; }
+    .chip:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+    .fila { display: flex; gap: 10px; align-items: flex-start; }
+    .fila.user { flex-direction: row-reverse; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+    .fila.user .avatar { background: var(--accent); color: var(--accent-text); }
+    .fila.agent .avatar { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border); }
+    .cuerpo { min-width: 0; max-width: min(100%, 860px); display: flex; flex-direction: column; gap: 8px; }
+    .fila.user .cuerpo { max-width: 75%; align-items: flex-end; }
+    .meta { font-size: 12px; color: var(--muted); padding: 0 4px; }
+    .burbuja { padding: 12px 16px; border-radius: 14px; overflow-x: auto; }
+    .fila.user .burbuja { background: var(--user); border-bottom-right-radius: 4px; white-space: pre-wrap; }
+    .fila.agent .burbuja { background: var(--panel); border: 1px solid var(--border); border-bottom-left-radius: 4px; box-shadow: var(--shadow); }
+    .burbuja > :first-child { margin-top: 0; } .burbuja > :last-child { margin-bottom: 0; }
+    .burbuja table { border-collapse: collapse; margin: 10px 0; font-size: 14px; width: 100%; }
+    .burbuja th, .burbuja td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+    .burbuja th { background: var(--tool-bg); font-weight: 600; }
+    .burbuja code { background: var(--code); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+    .burbuja pre { background: var(--code); padding: 10px; border-radius: 8px; overflow-x: auto; }
+    .burbuja pre code { background: none; padding: 0; }
+
+    .fila.agent .burbuja.confirmar { background: var(--warn-bg); border: 1px solid var(--warn-border); border-left: 5px solid var(--warn); }
+    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 650; padding: 3px 10px; border-radius: 999px; background: var(--warn); color: #1a1300; margin-bottom: 10px; }
+    .acciones { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .burbuja.error { border-color: var(--err); }
+
+    .tools { background: var(--tool-bg); border: 1px solid var(--tool-border); border-radius: 12px; overflow: hidden; }
+    .tools > summary { cursor: pointer; padding: 9px 14px; font-size: 13px; color: var(--muted); list-style: none; display: flex; align-items: center; gap: 8px; user-select: none; }
+    .tools > summary::-webkit-details-marker { display: none; }
+    .tools > summary::before { content: "▸"; transition: transform .15s; }
+    .tools[open] > summary::before { transform: rotate(90deg); }
+    .tool { border-top: 1px solid var(--tool-border); }
+    .tool summary { cursor: pointer; padding: 8px 14px; display: flex; align-items: center; gap: 10px; font-size: 13.5px; list-style: none; }
+    .tool summary::-webkit-details-marker { display: none; }
+    .tool .nombre { font-family: ui-monospace, Consolas, "SF Mono", monospace; }
+    .tool .args { color: var(--muted); font-size: 12.5px; font-family: ui-monospace, Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+    .estado { font-size: 12px; font-weight: 650; padding: 2px 8px; border-radius: 999px; flex-shrink: 0; }
+    .estado.ok { background: var(--accent-soft); color: var(--ok); } .estado.err { background: #fde8e6; color: var(--err); }
+    .tool pre { margin: 0; padding: 10px 14px 12px; font-size: 12.5px; white-space: pre-wrap; word-break: break-word; background: var(--code); }
+    .tool pre b { color: var(--muted); font-weight: 600; }
+
+    .pensando { display: inline-flex; gap: 5px; align-items: center; padding: 14px 18px; }
+    .pensando i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: p 1.2s infinite; }
+    .pensando i:nth-child(2) { animation-delay: .2s; } .pensando i:nth-child(3) { animation-delay: .4s; }
+    @keyframes p { 0%, 80%, 100% { opacity: .25; transform: translateY(0) } 40% { opacity: 1; transform: translateY(-3px) } }
+
+    footer { background: var(--panel); border-top: 1px solid var(--border); }
+    form { max-width: 1040px; margin: 0 auto; padding: 12px 16px; display: flex; gap: 10px; align-items: flex-end; }
+    textarea { flex: 1; resize: none; font: inherit; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); min-height: 46px; max-height: 180px; line-height: 1.45; }
+    textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .pista { max-width: 1040px; margin: 0 auto; padding: 0 16px 10px; font-size: 12px; color: var(--muted); }
   </style>
 </head>
 <body>
   <div class="app">
     <header>
-      <div><h1>Agente Periferia</h1><small id="estado">Conectando…</small></div>
-      <button id="nueva" type="button">Nueva sesión</button>
+      <div class="header-inner">
+        <div class="logo">OC</div>
+        <div class="titulo">
+          <h1>Agente de Órdenes de Compra</h1>
+          <div class="sub"><span class="dot" id="dot"></span><span id="estado">Conectando…</span></div>
+        </div>
+        <button class="btn" id="nueva" type="button">Nueva sesión</button>
+      </div>
     </header>
-    <main id="mensajes" aria-live="polite"></main>
-    <form id="form">
-      <textarea id="entrada" placeholder="Escribe una instrucción… (Enter envía, Shift+Enter salto de línea)" required></textarea>
-      <button class="primario" id="enviar">Enviar</button>
-    </form>
+
+    <main id="main"><div class="feed" id="feed"></div></main>
+
+    <footer>
+      <form id="form">
+        <textarea id="entrada" rows="1" placeholder="Escribe una instrucción, por ejemplo: Procesa la solicitud sol-001" required></textarea>
+        <button class="btn primario" id="enviar" type="submit">Enviar</button>
+      </form>
+      <div class="pista">Enter envía · Shift+Enter salto de línea · El agente nunca crea una OC con confirmaciones pendientes sin tu aprobación explícita.</div>
+    </footer>
   </div>
+
   <script>
     const $ = (id) => document.getElementById(id)
+    const feed = $("feed"), main = $("main")
     const nuevaSesion = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()))
     let sessionId = nuevaSesion()
+    let ocupado = false
+
+    const EJEMPLOS = [
+      ["sol-004 · cotización distinta", 'Procesa la solicitud "sol-004". Muéstrame la OC como quedaría en SAP, qué validaciones pasó y cuáles no, y no la crees hasta que yo lo confirme.'],
+      ["sol-001 · caso limpio", 'Procesa la solicitud "sol-001" y crea la OC si todo está en orden.'],
+      ["sol-002 · proveedor inexistente", 'Procesa la solicitud "sol-002".'],
+      ["sol-005 · compra retroactiva", 'Procesa la solicitud "sol-005" y dime si es retroactiva.'],
+      ["sol-006 · sin indicador de IVA", 'Procesa la solicitud "sol-006" y muéstrame qué valores tomó del maestro antes de crearla.'],
+    ]
 
     const md = (texto) => {
       if (window.marked && window.DOMPurify) return DOMPurify.sanitize(marked.parse(texto))
-      const div = document.createElement("div"); div.textContent = texto; return div.innerHTML.replace(/\n/g, "<br>")
+      const d = document.createElement("div"); d.textContent = texto; return d.innerHTML.replace(/\n/g, "<br>")
     }
+    const hora = () => new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
+    const bajar = () => { main.scrollTop = main.scrollHeight }
 
-    function agregar(clase, html) {
-      const div = document.createElement("div")
-      div.className = "msg " + clase
-      div.innerHTML = html
-      $("mensajes").appendChild(div)
-      $("mensajes").scrollTop = $("mensajes").scrollHeight
-      return div
-    }
-
-    function herramientas(toolCalls) {
-      const cont = document.createElement("div")
-      cont.className = "tools"
-      for (const t of toolCalls) {
-        const d = document.createElement("details")
-        d.className = "tool"
-        const sum = document.createElement("summary")
-        sum.innerHTML = `🔧 ${t.nombre} <span class="${t.ok ? "ok" : "err"}">${t.ok ? "✓ ok" : "✗ error"}</span>`
-        const pre = document.createElement("pre")
-        pre.textContent = "Argumentos: " + JSON.stringify(t.argumentos, null, 2) + "\n\nResultado: " + t.resumen
-        d.append(sum, pre)
-        cont.appendChild(d)
+    function bienvenida() {
+      const card = document.createElement("section")
+      card.className = "bienvenida"
+      card.innerHTML = `<h2>¿Qué solicitud procesamos?</h2>
+        <p>Leo el paquete (solicitud, cotización, aprobación), lo valido contra los maestros y las reglas de control RC1–RC10, te muestro la OC como quedaría en SAP y la creo solo cuando corresponde. Prueba con un caso:</p>
+        <div class="chips"></div>`
+      const chips = card.querySelector(".chips")
+      for (const [etiqueta, prompt] of EJEMPLOS) {
+        const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = etiqueta
+        b.onclick = () => enviar(prompt)
+        chips.appendChild(b)
       }
-      return cont
+      feed.appendChild(card)
+    }
+
+    function fila(rol) {
+      const f = document.createElement("div"); f.className = `fila ${rol}`
+      const av = document.createElement("div"); av.className = "avatar"; av.textContent = rol === "user" ? "Tú" : "OC"
+      const cuerpo = document.createElement("div"); cuerpo.className = "cuerpo"
+      const meta = document.createElement("div"); meta.className = "meta"; meta.textContent = `${rol === "user" ? "Tú" : "Agente"} · ${hora()}`
+      cuerpo.appendChild(meta)
+      f.append(av, cuerpo)
+      feed.appendChild(f)
+      return cuerpo
+    }
+
+    function tarjetaHerramientas(toolCalls) {
+      const d = document.createElement("details"); d.className = "tools"
+      const s = document.createElement("summary")
+      s.textContent = `${toolCalls.length} ${toolCalls.length === 1 ? "herramienta ejecutada" : "herramientas ejecutadas"}`
+      d.appendChild(s)
+      for (const t of toolCalls) {
+        const item = document.createElement("details"); item.className = "tool"
+        const sum = document.createElement("summary")
+        const nombre = document.createElement("span"); nombre.className = "nombre"; nombre.textContent = "🔧 " + t.nombre
+        const args = document.createElement("span"); args.className = "args"; args.textContent = JSON.stringify(t.argumentos)
+        const estado = document.createElement("span"); estado.className = "estado " + (t.ok ? "ok" : "err"); estado.textContent = t.ok ? "ok" : "error"
+        sum.append(nombre, args, estado)
+        const pre = document.createElement("pre")
+        pre.innerHTML = "<b>Argumentos</b>\n" + escapar(JSON.stringify(t.argumentos, null, 2)) + "\n\n<b>Resultado</b>\n" + escapar(t.resumen)
+        item.append(sum, pre)
+        d.appendChild(item)
+      }
+      return d
+    }
+    const escapar = (s) => { const d = document.createElement("div"); d.textContent = s; return d.innerHTML }
+
+    function burbujaAgente(cuerpo, data) {
+      const b = document.createElement("div")
+      b.className = "burbuja" + (data.needsConfirmation ? " confirmar" : "")
+      b.innerHTML = (data.needsConfirmation ? '<span class="badge">⚠ Requiere tu confirmación</span>' : "") + md(data.reply || "(sin respuesta)")
+      if (data.needsConfirmation) {
+        const acc = document.createElement("div"); acc.className = "acciones"
+        for (const [txt, msg, clase] of [["Confirmar", "Confirmo, procede.", "btn primario"], ["Cancelar", "No confirmo, no ejecutes la acción.", "btn"]]) {
+          const btn = document.createElement("button"); btn.type = "button"; btn.className = clase; btn.textContent = txt
+          btn.onclick = () => { acc.remove(); enviar(msg) }
+          acc.appendChild(btn)
+        }
+        b.appendChild(acc)
+      }
+      cuerpo.appendChild(b)
     }
 
     async function enviar(texto) {
-      agregar("user", "").textContent = texto
-      const pensando = agregar("agent pensando", "Pensando…")
-      $("enviar").disabled = true
+      if (ocupado || !texto.trim()) return
+      ocupado = true; $("enviar").disabled = true
+      document.querySelector(".bienvenida")?.remove()
+      const u = fila("user"); const ub = document.createElement("div"); ub.className = "burbuja"; ub.textContent = texto; u.appendChild(ub)
+      const a = fila("agent")
+      const pensando = document.createElement("div"); pensando.className = "burbuja pensando"; pensando.innerHTML = "<i></i><i></i><i></i>"
+      a.appendChild(pensando); bajar()
       try {
         const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId, message: texto }) })
         const data = await r.json()
         pensando.remove()
-        if (!r.ok) { agregar("agent", md("⚠️ " + (data.error || "Error del servidor"))); return }
-        if (data.toolCalls?.length) $("mensajes").appendChild(herramientas(data.toolCalls))
-        const div = agregar("agent" + (data.needsConfirmation ? " confirmar" : ""), (data.needsConfirmation ? '<span class="badge">⚠ Requiere tu confirmación</span>' : "") + md(data.reply || "(sin respuesta)"))
-        if (data.needsConfirmation) {
-          const acc = document.createElement("div"); acc.className = "acciones"
-          for (const [txt, msg] of [["Confirmo", "Confirmo, procede."], ["No, cancelar", "No confirmo, no ejecutes la acción."]]) {
-            const b = document.createElement("button"); b.className = "secundario"; b.type = "button"; b.textContent = txt
-            b.onclick = () => { acc.remove(); enviar(msg) }
-            acc.appendChild(b)
-          }
-          div.appendChild(acc)
-        }
-      } catch (e) {
+        if (!r.ok) { const e = document.createElement("div"); e.className = "burbuja error"; e.innerHTML = md("⚠️ " + (data.error || "Error del servidor")); a.appendChild(e); return }
+        if (data.toolCalls?.length) a.appendChild(tarjetaHerramientas(data.toolCalls))
+        burbujaAgente(a, data)
+      } catch {
         pensando.remove()
-        agregar("agent", md("⚠️ No hay conexión con el servidor. Intenta de nuevo."))
+        const e = document.createElement("div"); e.className = "burbuja error"; e.textContent = "⚠️ No hay conexión con el servidor. Intenta de nuevo."; a.appendChild(e)
       } finally {
-        $("enviar").disabled = false
-        $("mensajes").scrollTop = $("mensajes").scrollHeight
+        ocupado = false; $("enviar").disabled = false; bajar(); $("entrada").focus()
       }
     }
 
@@ -129,15 +240,17 @@
       e.preventDefault()
       const texto = $("entrada").value.trim()
       if (!texto) return
-      $("entrada").value = ""
+      $("entrada").value = ""; $("entrada").style.height = "auto"
       enviar(texto)
     })
-    $("entrada").addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("form").requestSubmit() }
-    })
-    $("nueva").onclick = () => { sessionId = nuevaSesion(); $("mensajes").innerHTML = "" }
+    $("entrada").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("form").requestSubmit() } })
+    $("entrada").addEventListener("input", (e) => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 180) + "px" })
+    $("nueva").onclick = () => { sessionId = nuevaSesion(); feed.innerHTML = ""; bienvenida() }
 
-    fetch("/api/health").then((r) => r.json()).then((h) => { $("estado").textContent = `${h.provider} · ${h.model}` }).catch(() => { $("estado").textContent = "Servidor no disponible" })
+    fetch("/api/health").then((r) => r.json())
+      .then((h) => { $("estado").textContent = `${h.provider} · ${h.model}`; $("dot").className = "dot on" })
+      .catch(() => { $("estado").textContent = "Servidor no disponible"; $("dot").className = "dot off" })
+    bienvenida()
   </script>
 </body>
 </html>
