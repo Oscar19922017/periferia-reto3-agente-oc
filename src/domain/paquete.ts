@@ -86,9 +86,24 @@ export function parsearMonto(crudo: string): number {
   return Number.isFinite(n) ? n : 0
 }
 
-// "2026-08-21T10:02:00-05:00" → "2026-08-21". Si no hay fecha ISO reconocible, devuelve el texto tal cual.
+// Fecha de calendario real en YYYY-MM-DD ("2026-02-30" no lo es: V8 la convertiría en 2026-03-02).
+export function fechaIsoValida(fecha: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return false
+  const d = new Date(`${fecha}T00:00:00Z`)
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === fecha
+}
+
+// "2026-08-21T10:02:00-05:00" → "2026-08-21"; "21/08/2026" → "2026-08-21". Si no hay fecha reconocible,
+// devuelve el texto tal cual: las reglas de control lo tratan como fecha ilegible y piden confirmación.
 export function recortarFecha(fecha: string): string {
-  return fecha.match(FECHA_ISO)?.[0] ?? fecha.trim()
+  const texto = fecha.trim()
+  const iso = texto.match(FECHA_ISO)?.[0]
+  if (iso) return iso
+  const dmy = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\b/)
+  if (!dmy) return texto
+  const [, dia = "", mes = "", anio = ""] = dmy
+  const candidata = `${anio}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`
+  return fechaIsoValida(candidata) ? candidata : texto
 }
 
 // Última línea "TOTAL (IVA incluido): COP 11.400.000" o "TOTAL: COP 3.200.000" → { moneda, total }
@@ -98,7 +113,9 @@ function extraerTotal(texto: string): { moneda: string | null; total: number } {
   return { moneda: m[1] ?? null, total: parsearMonto(m[2]) }
 }
 
-function sumarDias(fechaIso: string, dias: number): string {
+// null si la fecha no es una fecha real (p. ej. "2026-13-45" o "2026-02-30"): nunca lanza.
+function sumarDias(fechaIso: string, dias: number): string | null {
+  if (!fechaIsoValida(fechaIso)) return null
   const fecha = new Date(`${fechaIso}T00:00:00Z`)
   fecha.setUTCDate(fecha.getUTCDate() + dias)
   return fecha.toISOString().slice(0, 10)
@@ -107,22 +124,29 @@ function sumarDias(fechaIso: string, dias: number): string {
 export function parsearCotizacion(texto: string): Cotizacion {
   const nit = capturar(texto, /^NIT:\s*(.+)$/im)
   const { moneda, total } = extraerTotal(texto)
-  const fecha = capturar(texto, /^Fecha:\s*(\d{4}-\d{2}-\d{2})/im)
+  const fecha = capturar(texto, /^Fecha:\s*(.+)$/im)
   const dias = capturar(texto, /^Validez de la oferta:\s*(\d+)\s*d[ií]as/im)
   return {
     proveedor: capturar(texto, /^Proveedor:\s*(.+)$/im) ?? "",
     nit: nit ? normalizarNit(nit) || null : null,
     total,
     moneda: moneda ?? capturar(texto, /\b(COP|USD)\b/) ?? "",
-    validez_hasta: fecha && dias ? sumarDias(fecha, Number(dias)) : null,
+    validez_hasta: fecha && dias ? sumarDias(recortarFecha(fecha), Number(dias)) : null,
     texto,
   }
+}
+
+// "Fecha de emisión: 2026-08-10", "Fecha de expedición: 10/08/2026", "Fecha de factura: …" o "Fecha: …".
+// Si la fecha no se reconoce, se conserva el texto para que RC8 lo reporte como ilegible.
+function fechaFactura(texto: string): string {
+  const cruda = capturar(texto, /^Fecha(?: de (?:emisi[oó]n|expedici[oó]n|factura))?:\s*(.+)$/im)
+  return cruda ? recortarFecha(cruda) : ""
 }
 
 export function parsearFactura(texto: string): Factura {
   return {
     numero: capturar(texto, /\bN(?:o\.?|[°º])\s*([A-Z]*-?\d[A-Z0-9-]*)/i) ?? "",
-    fecha: capturar(texto, /^Fecha(?: de emisi[oó]n)?:\s*(\d{4}-\d{2}-\d{2})/im) ?? "",
+    fecha: fechaFactura(texto),
     total: extraerTotal(texto).total,
   }
 }

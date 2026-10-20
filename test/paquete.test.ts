@@ -5,6 +5,7 @@ import os from "node:os"
 import path from "node:path"
 import {
   contieneAprobado,
+  fechaIsoValida,
   leerPaquete,
   parsearCotizacion,
   parsearFactura,
@@ -153,6 +154,27 @@ describe("parsearCotizacion", () => {
     const c = parsearCotizacion("Fecha: 2026-12-20\nValidez de la oferta: 15 días\n")
     assert.equal(c.validez_hasta, "2027-01-04")
   })
+
+  test("fecha inválida o inexistente no lanza y deja validez_hasta en null", () => {
+    for (const fecha of ["2026-13-45", "2026-02-30", "ayer"]) {
+      const c = parsearCotizacion(`Fecha: ${fecha}\nValidez de la oferta: 30 días\nTOTAL: COP 100\n`)
+      assert.equal(c.validez_hasta, null, fecha)
+      assert.equal(c.total, 100, "el resto de la cotización se sigue leyendo")
+    }
+  })
+
+  test("fecha en DD/MM/YYYY también calcula la validez", () => {
+    assert.equal(parsearCotizacion("Fecha: 18/08/2026\nValidez de la oferta: 30 días\n").validez_hasta, "2026-09-17")
+  })
+})
+
+describe("fechaIsoValida", () => {
+  test("solo acepta fechas de calendario reales en YYYY-MM-DD", () => {
+    for (const ok of ["2026-08-18", "2024-02-29", "2026-12-31"]) assert.equal(fechaIsoValida(ok), true, ok)
+    for (const mal of ["2026-02-30", "2026-13-45", "2026-8-1", "18/08/2026", "", "2026-08-18T10:00:00Z"]) {
+      assert.equal(fechaIsoValida(mal), false, mal)
+    }
+  })
 })
 
 describe("parsearFactura", () => {
@@ -168,6 +190,19 @@ describe("parsearFactura", () => {
 
   test("sin datos reconocibles devuelve vacíos, sin confundir 'Nota' con un número", () => {
     assert.deepEqual(parsearFactura("Nota: documento sin número ni fecha"), { numero: "", fecha: "", total: 0 })
+  })
+
+  test("acepta 'Fecha de expedición', 'Fecha de factura', 'Fecha:' y DD/MM/YYYY", () => {
+    assert.equal(parsearFactura("No. FC-1\nFecha de expedición: 2026-08-10\n").fecha, "2026-08-10")
+    assert.equal(parsearFactura("No. FC-1\nFecha de factura: 2026-08-11\n").fecha, "2026-08-11")
+    assert.equal(parsearFactura("No. FC-1\nFecha de emisión: 10/08/2026\n").fecha, "2026-08-10")
+    assert.equal(parsearFactura("No. FC-1\nFecha: 9/8/2026\n").fecha, "2026-08-09")
+  })
+
+  test("una fecha ilegible se conserva tal cual para que RC8 la reporte", () => {
+    assert.equal(parsearFactura("Fecha de emisión: Fri, 19 Aug 2026 10:02:00 -0500\n").fecha, "Fri, 19 Aug 2026 10:02:00 -0500")
+    assert.equal(parsearFactura("Fecha de emisión: 31/02/2026\n").fecha, "31/02/2026")
+    assert.equal(parsearFactura("Fecha de vencimiento: 2026-09-10\n").fecha, "", "el vencimiento no es la fecha de emisión")
   })
 })
 
@@ -192,9 +227,19 @@ describe("aprobación", () => {
     assert.equal(contieneAprobado("No tengo objeción, aprobado."), true)
   })
 
-  test("recortarFecha deja YYYY-MM-DD y respeta formatos desconocidos", () => {
+  test("recortarFecha deja YYYY-MM-DD, convierte DD/MM/YYYY y respeta formatos desconocidos", () => {
     assert.equal(recortarFecha("2026-08-21T10:02:00-05:00"), "2026-08-21")
-    assert.equal(recortarFecha("21/08/2026"), "21/08/2026")
+    assert.equal(recortarFecha("21/08/2026"), "2026-08-21")
+    assert.equal(recortarFecha("31/02/2026"), "31/02/2026", "fecha inexistente no se convierte")
+    assert.equal(recortarFecha("Fri, 19 Aug 2026 10:02:00 -0500"), "Fri, 19 Aug 2026 10:02:00 -0500")
+  })
+
+  test("una aprobación con fecha RFC 2822 conserva el texto (RC9 pedirá confirmación)", async () => {
+    const cruda = JSON.parse(aprobacionCon("Aprobado.")) as Record<string, string>
+    const raiz = await crearCaso({ ...BASE, "aprobacion.json": JSON.stringify({ ...cruda, fecha: "Fri, 21 Aug 2026 10:02:00 -0500" }) })
+    const { aprobacion } = exigirOk(await leerPaquete(raiz, "caso-x"))
+    assert.equal(aprobacion?.fecha, "Fri, 21 Aug 2026 10:02:00 -0500")
+    assert.equal(aprobacion?.aprobado, true)
   })
 
   test("un correo con 'No aprobado' se lee con aprobado = false", async () => {
@@ -265,6 +310,13 @@ describe("leerPaquete: errores legibles y adjuntos faltantes", () => {
     const raiz = await crearCaso({ ...BASE, "aprobacion.json": "{ roto" })
     const error = exigirError(await leerPaquete(raiz, "caso-x"))
     assert.ok(error.includes("aprobacion.json"), error)
+  })
+
+  test("una cotización con fecha inválida no tumba la lectura del paquete", async () => {
+    const raiz = await crearCaso({ ...BASE, "cotizacion.txt": COTIZACION.replace("Fecha: 2026-08-18", "Fecha: 2026-13-45") })
+    const { cotizacion } = exigirOk(await leerPaquete(raiz, "caso-x"))
+    assert.equal(cotizacion?.validez_hasta, null)
+    assert.equal(cotizacion?.total, 200)
   })
 
   test("correo.json ausente → ok:false", async () => {
